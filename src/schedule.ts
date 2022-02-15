@@ -1,18 +1,41 @@
-import schedule from 'node-schedule'
-//@ts-ignore
+import schedule, { Job } from 'node-schedule'
 import { untis } from '../main'
+import { readFileSync, writeFile, writeFileSync } from "fs";
+
 
 const jobTime = '54 * * * *'
 
-export function startSchedule():void{
-    const job = schedule.scheduleJob('mainJob',jobTime,async (fireDate) => {
+let job:Job
+
+export function startSchedule(): void {
+    job = schedule.scheduleJob('mainJob', jobTime, async (fireDate) => {
         let table = await untis.getOwnClassTimetableForToday()
-        for (const lesson of table) {
-           if(lesson.code === 'cancelled'){
-               console.log(lesson)
-           }
+
+        let cancelledLessons = table.filter((lesson) => lesson.code === 'cancelled')
+        let missingTeachers = cancelledLessons.map((lesson) => lesson.te[0].longname)
+
+        logMissingTeachers(missingTeachers)
+    })
+}
+
+export function stopSchedule():void{
+    job.cancel()
+}
+
+function logMissingTeachers(teachers: string[]) {
+    let rawData = readFileSync("./out/data.json", "utf-8")
+    let data = JSON.parse(rawData)
+
+    teachers.forEach(teacher => {
+        if (data.teachers[teacher]) {
+            data.teachers[teacher] = data.teachers[teacher] + 1
+        } else {
+            data.teachers[teacher] = 1
         }
-    })    
+    })
+
+    rawData = JSON.stringify(data)
+    writeFileSync("./out/data.json", rawData)
 }
 
 

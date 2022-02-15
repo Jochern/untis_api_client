@@ -14,17 +14,29 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.startSchedule = void 0;
 const node_schedule_1 = __importDefault(require("node-schedule"));
-//@ts-ignore
 const main_1 = require("../main");
+const fs_1 = require("fs");
 const jobTime = '54 * * * *';
 function startSchedule() {
     const job = node_schedule_1.default.scheduleJob('mainJob', jobTime, (fireDate) => __awaiter(this, void 0, void 0, function* () {
         let table = yield main_1.untis.getOwnClassTimetableForToday();
-        for (const lesson of table) {
-            if (lesson.code === 'cancelled') {
-                console.log(lesson);
-            }
-        }
+        let cancelledLessons = table.filter((lesson) => lesson.code === 'cancelled');
+        let missingTeachers = cancelledLessons.map((lesson) => lesson.te[0].longname);
+        logMissingTeachers(missingTeachers);
     }));
 }
 exports.startSchedule = startSchedule;
+function logMissingTeachers(teachers) {
+    let rawData = (0, fs_1.readFileSync)("./out/data.json", "utf-8");
+    let data = JSON.parse(rawData);
+    teachers.forEach(teacher => {
+        if (data.teachers[teacher]) {
+            data.teachers[teacher] = data.teachers[teacher] + 1;
+        }
+        else {
+            data.teachers[teacher] = 1;
+        }
+    });
+    rawData = JSON.stringify(data);
+    (0, fs_1.writeFileSync)("./out/data.json", rawData);
+}
